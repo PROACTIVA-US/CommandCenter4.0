@@ -15,12 +15,16 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     goal: Optional[str] = None
+    context: Optional[str] = None
+    context_completeness: Optional[float] = None
 
 
 class ProjectResponse(BaseModel):
     id: str
     name: str
     goal: Optional[str]
+    context: Optional[str]  # JSON string of discovered context
+    context_completeness: float
     created_at: datetime
     
     class Config:
@@ -133,3 +137,27 @@ class PlanAction(BaseModel):
 
 class PlanResponse(BaseModel):
     actions: List[PlanAction]
+
+
+# --- Context Discovery Schemas ---
+
+class DiscoverContextRequest(BaseModel):
+    project_id: str
+
+
+class ContextQuestion(BaseModel):
+    question: str
+    why_it_matters: str
+    priority: str  # high | medium | low
+    category: str  # product | market | team | finance | strategy
+
+
+class DiscoverContextResponse(BaseModel):
+    questions: List[ContextQuestion]
+    context_completeness: float  # 0.0-1.0
+    summary: str  # What we know so far
+
+
+class AnswerContextRequest(BaseModel):
+    project_id: str
+    answers: dict  # {question: answer} pairs

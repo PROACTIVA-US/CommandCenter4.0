@@ -5,6 +5,7 @@ A strategic intelligence tool for discovering paths to your goals.
 Enhanced with OpenForecaster for calibrated predictions.
 """
 
+import json
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -21,6 +22,8 @@ from .schemas import (
     WanderRequest, WanderResponse, WanderIdea,
     ValidateRequest, ValidateResponse,
     PlanRequest, PlanResponse, PlanAction,
+    DiscoverContextRequest, DiscoverContextResponse, ContextQuestion,
+    AnswerContextRequest,
 )
 from . import intelligence
 
@@ -222,7 +225,15 @@ async def wander(request: WanderRequest, db: Session = Depends(get_db)):
     
     goal = project.goal or "achieving strategic objectives"
     
-    ideas = await intelligence.wander(request.context, goal)
+    # Parse project context if available
+    project_context = None
+    if project.context:
+        try:
+            project_context = json.loads(project.context)
+        except json.JSONDecodeError:
+            pass
+    
+    ideas = await intelligence.wander(request.context, goal, project_context)
     return WanderResponse(ideas=[WanderIdea(**idea) for idea in ideas])
 
 
@@ -248,6 +259,79 @@ async def plan(request: PlanRequest, db: Session = Depends(get_db)):
     
     actions = await intelligence.plan(request.validated_idea, goal, request.constraints)
     return PlanResponse(actions=[PlanAction(**action) for action in actions])
+
+
+# --- Context Discovery ---
+
+@app.post("/api/discover-context", response_model=DiscoverContextResponse)
+async def discover_context(request: DiscoverContextRequest, db: Session = Depends(get_db)):
+    """
+    Identify gaps in project context and generate questions to fill them.
+    This inverts the usual flow: the system asks the user what it needs to know.
+    """
+    project = db.query(Project).filter(Project.id == request.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    goal = project.goal or "achieving strategic objectives"
+    
+    # Parse existing context if available
+    known_context = None
+    if project.context:
+        try:
+            known_context = json.loads(project.context)
+        except json.JSONDecodeError:
+            pass
+    
+    result = await intelligence.discover_context(project.name, goal, known_context)
+    
+    return DiscoverContextResponse(
+        questions=[ContextQuestion(**q) for q in result["questions"]],
+        context_completeness=result["context_completeness"],
+        summary=result["summary"]
+    )
+
+
+@app.post("/api/answer-context")
+async def answer_context(request: AnswerContextRequest, db: Session = Depends(get_db)):
+    """
+    Process user's answers to context discovery questions.
+    Integrates answers into the project's context.
+    """
+    project = db.query(Project).filter(Project.id == request.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    goal = project.goal or "achieving strategic objectives"
+    
+    # Parse existing context if available
+    existing_context = None
+    if project.context:
+        try:
+            existing_context = json.loads(project.context)
+        except json.JSONDecodeError:
+            pass
+    
+    # Integrate new answers
+    new_context = await intelligence.integrate_answers(
+        project.name, goal, existing_context, request.answers
+    )
+    
+    # Save to database
+    project.context = json.dumps(new_context)
+    
+    # Re-assess completeness
+    completeness_check = await intelligence.discover_context(project.name, goal, new_context)
+    project.context_completeness = completeness_check["context_completeness"]
+    
+    db.commit()
+    db.refresh(project)
+    
+    return {
+        "context": new_context,
+        "context_completeness": project.context_completeness,
+        "summary": completeness_check["summary"]
+    }
 
 
 # --- Batch Operations ---

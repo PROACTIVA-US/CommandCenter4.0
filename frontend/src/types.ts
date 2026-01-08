@@ -4,6 +4,8 @@ export interface Project {
   id: string;
   name: string;
   goal: string | null;
+  context: string | null;  // JSON string of discovered context
+  context_completeness: number;  // 0.0-1.0
   created_at: string;
 }
 
@@ -52,6 +54,27 @@ export interface PlanAction {
   why: string;
   effort: 'low' | 'medium' | 'high';
   dependencies: string[];
+}
+
+// Context Discovery Types
+
+export interface ContextQuestion {
+  question: string;
+  why_it_matters: string;
+  priority: 'high' | 'medium' | 'low';
+  category: 'product' | 'market' | 'team' | 'finance' | 'strategy';
+}
+
+export interface DiscoverContextResult {
+  questions: ContextQuestion[];
+  context_completeness: number;
+  summary: string;
+}
+
+export interface AnswerContextResult {
+  context: Record<string, unknown>;
+  context_completeness: number;
+  summary: string;
 }
 
 // UI Types

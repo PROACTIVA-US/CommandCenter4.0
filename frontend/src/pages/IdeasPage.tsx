@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,7 +7,9 @@ import {
   WrenchScrewdriverIcon,
   ArrowPathIcon,
   PlusIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
+import ContextDiscoveryModal from '../components/ContextDiscoveryModal';
 
 export default function IdeasPage() {
   const navigate = useNavigate();
@@ -23,6 +25,8 @@ export default function IdeasPage() {
   const [showCaptureIdea, setShowCaptureIdea] = useState(false);
   const [ideaTitle, setIdeaTitle] = useState('');
   const [ideaDescription, setIdeaDescription] = useState('');
+  
+  const [showContextDiscovery, setShowContextDiscovery] = useState(false);
 
   const handleCreateProject = async () => {
     if (!projectName.trim()) return;
@@ -30,6 +34,8 @@ export default function IdeasPage() {
     setProjectName('');
     setProjectGoal('');
     setShowNewProject(false);
+    // Show context discovery for new projects
+    setShowContextDiscovery(true);
   };
 
   const handleExplore = async () => {
@@ -101,6 +107,29 @@ export default function IdeasPage() {
         <p className="text-slate-400">
           Choose how to enter The Loop for <span className="text-blue-400">{currentProject.name}</span>
         </p>
+        
+        {/* Context indicator */}
+        <div className="mt-4 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Context:</span>
+            <div className="w-24 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+                style={{ width: `${(currentProject.context_completeness || 0) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-slate-500">
+              {Math.round((currentProject.context_completeness || 0) * 100)}%
+            </span>
+          </div>
+          <button
+            onClick={() => setShowContextDiscovery(true)}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+          >
+            <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+            {currentProject.context_completeness > 0.5 ? 'Refine context' : 'Tell me more'}
+          </button>
+        </div>
       </div>
 
       {/* Three Paths */}
@@ -296,6 +325,12 @@ export default function IdeasPage() {
           </div>
         </div>
       )}
+      
+      {/* Context Discovery Modal */}
+      <ContextDiscoveryModal
+        isOpen={showContextDiscovery}
+        onClose={() => setShowContextDiscovery(false)}
+      />
     </div>
   );
 }

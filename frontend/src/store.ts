@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Project, Idea, Connection, WanderIdea, ValidationResult, PlanAction } from './types';
+import { Project, Idea, Connection, WanderIdea, ValidationResult, PlanAction, DiscoverContextResult, AnswerContextResult } from './types';
 
 const API_URL = '/api';
 
@@ -33,8 +33,13 @@ interface AppState {
   validate: (hypothesis: string, context?: string) => Promise<ValidationResult>;
   plan: (validatedIdea: string, constraints?: string) => Promise<PlanAction[]>;
   
+  // Context Discovery
+  discoverContext: () => Promise<DiscoverContextResult>;
+  answerContext: (answers: Record<string, string>) => Promise<AnswerContextResult>;
+  
   // Helpers
   setError: (error: string | null) => void;
+  updateCurrentProject: (updates: Partial<Project>) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -245,5 +250,75 @@ export const useStore = create<AppState>((set, get) => ({
       set({ error: 'Planning failed', loading: false });
       throw e;
     }
+  },
+  
+  // Context Discovery
+  discoverContext: async () => {
+    const { currentProject } = get();
+    if (!currentProject) throw new Error('No project selected');
+    
+    set({ loading: true, error: null });
+    try {
+      const res = await fetch(`${API_URL}/discover-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProject.id }),
+      });
+      const data = await res.json();
+      set({ loading: false });
+      return data;
+    } catch (e) {
+      set({ error: 'Context discovery failed', loading: false });
+      throw e;
+    }
+  },
+  
+  answerContext: async (answers: Record<string, string>) => {
+    const { currentProject } = get();
+    if (!currentProject) throw new Error('No project selected');
+    
+    set({ loading: true, error: null });
+    try {
+      const res = await fetch(`${API_URL}/answer-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          project_id: currentProject.id,
+          answers 
+        }),
+      });
+      const data = await res.json();
+      
+      // Update current project with new context
+      set((state) => ({
+        loading: false,
+        currentProject: state.currentProject ? {
+          ...state.currentProject,
+          context: JSON.stringify(data.context),
+          context_completeness: data.context_completeness,
+        } : null,
+        projects: state.projects.map((p) =>
+          p.id === currentProject.id
+            ? { ...p, context: JSON.stringify(data.context), context_completeness: data.context_completeness }
+            : p
+        ),
+      }));
+      
+      return data;
+    } catch (e) {
+      set({ error: 'Failed to save context', loading: false });
+      throw e;
+    }
+  },
+  
+  updateCurrentProject: (updates: Partial<Project>) => {
+    set((state) => ({
+      currentProject: state.currentProject
+        ? { ...state.currentProject, ...updates }
+        : null,
+      projects: state.projects.map((p) =>
+        p.id === state.currentProject?.id ? { ...p, ...updates } : p
+      ),
+    }));
   },
 }));

@@ -60,13 +60,24 @@ frontend/
       IdeaNode.tsx     # Custom React Flow node
 ```
 
-## The Three Prompts
+## The Four Prompts
 
 All strategic intelligence lives in `backend/app/intelligence.py`:
 
-1. **wander()** - Explores a space, returns nascent ideas
-2. **validate()** - Tests a hypothesis, returns confidence (now with OpenForecaster!)
-3. **plan()** - Converts validated idea to action steps
+1. **discover_context()** - Identifies gaps in knowledge, generates questions to fill them
+2. **wander()** - Explores a space, returns nascent ideas (now context-aware!)
+3. **validate()** - Tests a hypothesis, returns confidence (now with OpenForecaster!)
+4. **plan()** - Converts validated idea to action steps
+
+## Context Discovery
+
+The system can now prompt the user for context instead of the other way around.
+
+- **Flow**: Create project → System asks strategic questions → Answers become structured context
+- **Progressive**: Each Q&A session improves context_completeness (0.0-1.0)
+- **Integrated**: Context automatically enhances wander() results
+- **Endpoints**: `/api/discover-context`, `/api/answer-context`
+- **Schema**: Project.context stores JSON, Project.context_completeness tracks depth
 
 ## OpenForecaster Integration
 

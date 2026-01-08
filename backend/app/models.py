@@ -20,6 +20,8 @@ class Project(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     name = Column(String, nullable=False)
     goal = Column(Text)  # e.g., "100M ARR by 2027"
+    context = Column(Text)  # JSON blob of discovered context
+    context_completeness = Column(Float, default=0.0)  # 0.0-1.0 how much we know
     created_at = Column(DateTime, default=datetime.utcnow)
     
     ideas = relationship("Idea", back_populates="project", cascade="all, delete-orphan")
